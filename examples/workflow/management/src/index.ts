@@ -11,55 +11,59 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { DaprClient } from "@dapr/dapr";
+import { DaprWorkflowClient } from "@dapr/dapr";
 
-async function printWorkflowStatus(client: DaprClient, instanceId: string) {
-  const workflow = await client.workflow.get(instanceId);
+async function printWorkflowStatus(client: DaprWorkflowClient, instanceId: string) {
+  const workflow = await client.getWorkflowState(instanceId, true);
   console.log(
-    `Workflow ${workflow.workflowName}, created at ${workflow.createdAt.toUTCString()}, has status ${
-      workflow.runtimeStatus
+    `Workflow ${workflow?.name}, created at ${workflow?.createdAt.toUTCString()}, has status ${
+      workflow?.runtimeStatus
     }`,
   );
-  console.log(`Additional properties: ${JSON.stringify(workflow.properties)}`);
+  console.log(`Additional properties: ${JSON.stringify(workflow)}`);
   console.log("--------------------------------------------------\n\n");
 }
 
 async function start() {
-  const client = new DaprClient();
+  const workflowClient = new DaprWorkflowClient();
+
+  console.log("Starting workflow management example");
 
   // Start a new workflow instance
-  const instanceId = await client.workflow.start("OrderProcessingWorkflow", {
+  const instanceId = await workflowClient.scheduleNewWorkflow("OrderProcessingWorkflow", {
     Name: "Paperclips",
     TotalCost: 99.95,
     Quantity: 4,
   });
   console.log(`Started workflow instance ${instanceId}`);
-  await printWorkflowStatus(client, instanceId);
+  await printWorkflowStatus(workflowClient, instanceId);
 
   // Pause a workflow instance
-  await client.workflow.pause(instanceId);
+  await workflowClient.suspendWorkflow(instanceId);
   console.log(`Paused workflow instance ${instanceId}`);
-  await printWorkflowStatus(client, instanceId);
+  await printWorkflowStatus(workflowClient, instanceId);
 
   // Resume a workflow instance
-  await client.workflow.resume(instanceId);
+  await workflowClient.resumeWorkflow(instanceId);
   console.log(`Resumed workflow instance ${instanceId}`);
-  await printWorkflowStatus(client, instanceId);
+  await printWorkflowStatus(workflowClient, instanceId);
 
   // Terminate a workflow instance
-  // await client.workflow.terminate(instanceId);
+  // await workflowClient.terminateWorkflow(instanceId, {
+  //   reason: "Terminated by user",
+  // });
   // console.log(`Terminated workflow instance ${instanceId}`);
-  // await printWorkflowStatus(client, instanceId);
+  // await printWorkflowStatus(workflowClient, instanceId);
 
   // Wait for the workflow to complete, 30 seconds!
   await new Promise((resolve) => setTimeout(resolve, 30000));
-  await printWorkflowStatus(client, instanceId);
+  await printWorkflowStatus(workflowClient, instanceId);
 
   // Purge a workflow instance
-  await client.workflow.purge(instanceId);
+  await workflowClient.purgeWorkflow(instanceId);
   console.log(`Purged workflow instance ${instanceId}`);
   // This will throw an error because the workflow instance no longer exists.
-  await printWorkflowStatus(client, instanceId);
+  await printWorkflowStatus(workflowClient, instanceId);
 }
 
 start().catch((e) => {
